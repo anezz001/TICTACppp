@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Tic Tac Anezz</title>
+<style>
+  body {
+    margin:0;
+    background:#0a0012;
+    color:#fff;
+    font-family:Arial, sans-serif;
+    text-align:center;
+    overflow:hidden;
+  }
+  h1,h2,h3 {
+    color:#b366ff;
+    text-shadow:0 0 10px #b366ff;
+    font-weight:bold;
+  }
+  input,button {
+    padding:10px 15px;
+    margin:10px auto;
+    font-size:18px;
+    border:none;
+    border-radius:10px;
+    display:block;
+  }
+  input {width:80%;max-width:300px;}
+  button {
+    background:#5e00a3;
+    color:#fff;
+    cursor:pointer;
+    box-shadow:0 0 10px #9a4dff;
+    width:220px;
+  }
+  button:hover {background:#7d1fff}
+  .hidden {display:none}
+  .menu, .login, .game {margin-top:40px}
+  .board {
+    display:grid;
+    grid-template-columns:repeat(3,100px);
+    grid-template-rows:repeat(3,100px);
+    gap:5px;
+    justify-content:center;
+    margin:20px auto;
+  }
+  .cell {
+    background:#1a0033;
+    font-size:60px;       /* besar */
+    font-weight:bold;     /* tebal */
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    border-radius:10px;
+    box-shadow:0 0 15px #7a00ff;
+    color:#fff;
+    text-shadow:0 0 12px #b366ff;
+  }
+  .cell.taken {cursor:not-allowed}
+  .snowflake {
+    position:fixed;
+    top:-10px;
+    color:#b366ff;
+    font-size:20px;
+    animation:fall linear forwards;
+    text-shadow:0 0 8px #fff,0 0 15px #b366ff;
+  }
+  @keyframes fall {to {transform:translateY(110vh);}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="login">
+  <h1>Login Tic Tac</h1>
+  <input id="email" type="text" placeholder="Email"><br>
+  <input id="password" type="password" placeholder="Sandi"><br>
+  <button onclick="login()">Masuk</button>
+  <p id="loginMsg"></p>
+</div>
+
+<!-- MENU -->
+<div id="menu" class="menu hidden">
+  <h1>Menu Utama</h1>
+  <button onclick="startPvP()">Play with Player</button>
+  <button onclick="showLevel()">Play with AI</button>
+  <div id="levelMenu" class="hidden">
+    <h2>Pilih Level</h2>
+    <button onclick="startAI('easy')">Easy</button>
+    <button onclick="startAI('medium')">Medium</button>
+    <button onclick="startAI('hard')">Hard</button>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game" class="game hidden">
+  <h2 id="turnInfo"></h2>
+  <div class="board" id="board"></div>
+  <div id="result" class="hidden">
+    <h1 id="resultText"></h1>
+    <button onclick="restart()">Main Lagi</button>
+    <button onclick="backMenu()">Ganti Level</button>
+  </div>
+</div>
+
+<script>
+let currentPlayer, board, mode, aiLevel;
+const boardEl=document.getElementById("board");
+const turnInfo=document.getElementById("turnInfo");
+const result=document.getElementById("result");
+const resultText=document.getElementById("resultText");
+
+function login(){
+  const email=document.getElementById("email").value.trim();
+  const pass=document.getElementById("password").value.trim();
+  const msg=document.getElementById("loginMsg");
+  if(!email.endsWith("@gmail.com")||/\d/.test(pass)||pass===""){
+    msg.textContent="Email atau sandi salah";
+    return;
+  }
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("menu").classList.remove("hidden");
+}
+
+function showLevel(){
+  document.getElementById("levelMenu").classList.remove("hidden");
+}
+function startPvP(){
+  mode="pvp";aiLevel=null;startGame();
+}
+function startAI(level){
+  mode="ai";aiLevel=level;startGame();
+}
+function startGame(){
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  resetBoard();
+}
+function resetBoard(){
+  board=["","","","","","","","",""];
+  currentPlayer="X";
+  boardEl.innerHTML="";
+  for(let i=0;i<9;i++){
+    const cell=document.createElement("div");
+    cell.className="cell";
+    cell.addEventListener("click",()=>makeMove(i));
+    boardEl.appendChild(cell);
+  }
+  result.classList.add("hidden");
+  updateTurn();
+}
+function updateTurn(){
+  turnInfo.textContent="Giliran: "+currentPlayer;
+}
+function makeMove(i){
+  if(board[i]!=""||!result.classList.contains("hidden")) return;
+  board[i]=currentPlayer;
+  // tampilkan tebal ❌ atau ⭕
+  boardEl.children[i].textContent=currentPlayer==="X"?"❌":"⭕";
+  boardEl.children[i].classList.add("taken");
+  if(checkWin(currentPlayer)){endGame(currentPlayer);return;}
+  if(board.every(c=>c!="")){endGame("draw");return;}
+  currentPlayer=currentPlayer==="X"?"O":"X";
+  updateTurn();
+  if(mode==="ai"&&currentPlayer==="O"){
+    setTimeout(aiMove,400);
+  }
+}
+function aiMove(){
+  let move;
+  if(aiLevel==="easy"){
+    const avail=board.map((c,i)=>c==""?i:null).filter(v=>v!=null);
+    move=avail[Math.floor(Math.random()*avail.length)];
+  } else if(aiLevel==="medium"){
+    move=mediumAI();
+  } else {
+    move=bestMove();
+  }
+  makeMove(move);
+}
+function mediumAI(){
+  for(let i=0;i<9;i++){if(board[i]==""){board[i]="O";if(checkWin("O")){board[i]="";return i;}board[i]="";}}
+  for(let i=0;i<9;i++){if(board[i]==""){board[i]="X";if(checkWin("X")){board[i]="";return i;}board[i]="";}}
+  const avail=board.map((c,i)=>c==""?i:null).filter(v=>v!=null);
+  return avail[Math.floor(Math.random()*avail.length)];
+}
+function bestMove(){
+  let bestScore=-Infinity,move;
+  for(let i=0;i<9;i++){
+    if(board[i]==""){board[i]="O";let score=minimax(board,0,false);board[i]="";if(score>bestScore){bestScore=score;move=i;}}
+  }
+  return move;
+}
+function minimax(newBoard,depth,isMax){
+  if(checkWin("O")) return 10-depth;
+  if(checkWin("X")) return depth-10;
+  if(newBoard.every(c=>c!="")) return 0;
+  if(isMax){
+    let best=-Infinity;
+    for(let i=0;i<9;i++){if(newBoard[i]==""){newBoard[i]="O";best=Math.max(best,minimax(newBoard,depth+1,false));newBoard[i]="";}}
+    return best;
+  } else {
+    let best=Infinity;
+    for(let i=0;i<9;i++){if(newBoard[i]==""){newBoard[i]="X";best=Math.min(best,minimax(newBoard,depth+1,true));newBoard[i]="";}}
+    return best;
+  }
+}
+function checkWin(p){
+  const winComb=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  return winComb.some(comb=>comb.every(i=>board[i]==p));
+}
+function endGame(winner){
+  if(winner==="draw"){
+    resultText.textContent="SERI";
+  } else if(winner==="X"){
+    resultText.textContent="ANDA MENANG";
+  } else {
+    if(mode==="ai"){resultText.textContent="ANDA KALAH";}
+    else resultText.textContent="PEMAIN "+winner+" MENANG";
+  }
+  result.classList.remove("hidden");
+}
+function restart(){resetBoard();}
+function backMenu(){
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("menu").classList.remove("hidden");
+  document.getElementById("levelMenu").classList.add("hidden");
+}
+function createSnow(){
+  const snow=document.createElement("div");
+  snow.className="snowflake";
+  snow.textContent="❄";
+  snow.style.left=Math.random()*window.innerWidth+"px";
+  snow.style.animationDuration=(5+Math.random()*5)+"s";
+  document.body.appendChild(snow);
+  setTimeout(()=>snow.remove(),10000);
+}
+setInterval(createSnow,200);
+</script>
+</body>
+</html>
